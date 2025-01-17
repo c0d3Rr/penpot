@@ -4560,14 +4560,6 @@ msgstr "Stânga sus"
 msgid "workspace.options.radius-top-right"
 msgstr "Dreapta sus"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/measures.cljs:639
-msgid "workspace.options.radius.all-corners"
-msgstr "Toate colţurile"
-
-#: src/app/main/ui/workspace/sidebar/options/menus/measures.cljs:640
-msgid "workspace.options.radius.single-corners"
-msgstr "Colțuri independente"
-
 #: src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:184
 msgid "workspace.options.recent-fonts"
 msgstr "Recente"

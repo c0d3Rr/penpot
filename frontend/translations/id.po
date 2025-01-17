@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2025-01-09 08:01+0000\n"
+"PO-Revision-Date: 2025-01-17 10:00+0000\n"
 "Last-Translator: Linerly <linerly@proton.me>\n"
 "Language-Team: Indonesian <https://hosted.weblate.org/projects/penpot/"
 "frontend/id/>\n"
@@ -5157,14 +5157,6 @@ msgstr "Kiri atas"
 msgid "workspace.options.radius-top-right"
 msgstr "Kanan atas"
 
-#: src/app/main/ui/workspace/sidebar/options/menus/measures.cljs:639
-msgid "workspace.options.radius.all-corners"
-msgstr "Semua sudut"
-
-#: src/app/main/ui/workspace/sidebar/options/menus/measures.cljs:640
-msgid "workspace.options.radius.single-corners"
-msgstr "Sudut tersendiri"
-
 #: src/app/main/ui/workspace/sidebar/options/menus/typography.cljs:184
 msgid "workspace.options.recent-fonts"
 msgstr "Terkini"
@@ -6564,6 +6556,7 @@ msgid "labels.adding"
 msgstr "Menambahkan..."
 
 #: src/app/main/ui/workspace/tokens/form.cljs:391
+#, fuzzy
 msgid "workspace.token.token-value"
 msgstr " "
 
@@ -6619,6 +6612,7 @@ msgid "workspace.libraries.empty.add-some"
 msgstr "Atau tambahkan beberapa dari sini untuk mencoba:"
 
 #: src/app/main/ui/workspace/tokens/form.cljs:373
+#, fuzzy
 msgid "workspace.token.token-name"
 msgstr " "
 
@@ -6641,22 +6635,22 @@ msgstr "Riwayat versi"
 msgid "dashboard.upgrade-plan.penpot-free"
 msgstr "Penpot Gratis"
 
-#: src/app/main/ui/workspace/context_menu.cljs:146
-msgid "workspace.shape.menu.copy_link"
-msgstr "Salin tautan ke papan klip"
-
 #: src/app/main/ui/workspace/tokens/form.cljs:408
+#, fuzzy
 msgid "workspace.token.enter-token-description"
 msgstr " "
 
 #: src/app/main/ui/workspace/tokens/form.cljs:370
+#, fuzzy
 msgid "workspace.token.enter-token-name"
 msgstr " "
 
 #: src/app/main/ui/workspace/tokens/form.cljs:390
+#, fuzzy
 msgid "workspace.token.enter-token-value"
 msgstr " "
 
 #: src/app/main/ui/workspace/tokens/form.cljs:409
+#, fuzzy
 msgid "workspace.token.token-description"
 msgstr " "
