@@ -16,6 +16,7 @@
    [app.common.uuid :as uuid]
    [app.main.data.workspace :as dw]
    [app.main.data.workspace.collapse :as dwc]
+   [app.main.features :as features]
    [app.main.refs :as refs]
    [app.main.store :as st]
    [app.main.ui.components.shape-icon :as sic]
@@ -53,7 +54,10 @@
                            (= uuid/zero (:parent-id item)))
         absolute?      (ctl/item-absolute? item)
         components-v2  (mf/use-ctx ctx/components-v2)
-        main-instance? (or (not components-v2) (:main-instance item))]
+        main-instance? (or (not components-v2) (:main-instance item))
+        variants?      (features/use-feature "variants/v1")
+        is-variant?    (when variants? (ctk/is-variant? item))
+        variant-name   (when is-variant? (:variant-name item))]
     [:*
      [:div {:id id
             :ref dref
@@ -129,6 +133,7 @@
                        :selected? selected?
                        :type-comp component-tree?
                        :type-frame (cfh/frame-shape? item)
+                       :variant-name variant-name
                        :hidden? hidden?}]
 
        (when (not read-only?)
