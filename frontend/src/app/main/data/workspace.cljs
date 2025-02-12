@@ -879,6 +879,7 @@
     (watch [it state _]
       (let [page-id  (:current-page-id state)
             objects  (dsh/lookup-page-objects state page-id)
+            data     (dsh/lookup-file-data state)
 
             ;; Ignore any shape whose parent is also intended to be moved
             ids      (cfh/clean-loops objects ids)
@@ -894,6 +895,7 @@
                                            page-id
                                            to-index
                                            ids
+                                           data
                                            :ignore-parents? ignore-parents?)
             undo-id (js/Symbol)]
 

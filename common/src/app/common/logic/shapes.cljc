@@ -10,12 +10,14 @@
    [app.common.files.changes-builder :as pcb]
    [app.common.files.helpers :as cfh]
    [app.common.geom.shapes :as gsh]
+   [app.common.logic.variants :as clv]
    [app.common.types.component :as ctk]
    [app.common.types.container :as ctn]
    [app.common.types.shape.interactions :as ctsi]
    [app.common.types.shape.layout :as ctl]
    [app.common.types.token :as cto]
-   [app.common.uuid :as uuid]))
+   [app.common.uuid :as uuid]
+   [cuerdas.core :as str]))
 
 (defn- generate-unapply-tokens
   "When updating attributes that have a token applied, we must unapply it, because the value
@@ -238,23 +240,37 @@
     [all-parents changes]))
 
 
+
+
+(defn- assign-values [items names-str]
+  (let [names (str/split names-str " / ")
+        assigned (mapv #(assoc % :value (nth names %2 "--")) items (range))
+        remaining (drop (count items) names)
+        new-properties (map-indexed (fn [i v] {:name (str "Property" (+ (count items) i 1)) :value v}) remaining)]
+    (into assigned new-properties)))
+
 (defn generate-relocate
-  [changes objects parent-id page-id to-index ids & {:keys [cell ignore-parents?]}]
+  [changes objects parent-id page-id to-index ids data & {:keys [cell ignore-parents?]}]
   (let [ids    (cfh/order-by-indexed-shapes objects ids)
         shapes (map (d/getf objects) ids)
         parent (get objects parent-id)
         all-parents (into #{parent-id} (map #(cfh/get-parent-id objects %)) ids)
         parents  (if ignore-parents? #{parent-id} all-parents)
 
-        children-ids
-        (->> ids
-             (mapcat #(cfh/get-children-ids-with-self objects %)))
+        children-ids (mapcat #(cfh/get-children-ids-with-self objects %) ids)
 
-        child-heads
-        (->> ids
-             (mapcat #(ctn/get-child-heads objects %))
-             (map :id))
+        child-heads (mapcat #(ctn/get-child-heads objects %) ids)
 
+        child-heads-ids (map :id child-heads)
+
+
+        variant-properties (when (ctk/is-variant-container? parent)
+                             (as-> parent $
+                               (:shapes $)
+                               (first $)
+                               (get objects $)
+                               (:component-id $)
+                               (get-in data [:components $ :variant-properties])))
         component-main-parent
         (ctn/find-component-main objects parent false)
 
@@ -342,6 +358,7 @@
     (-> changes
         (pcb/with-page-id page-id)
         (pcb/with-objects objects)
+        (pcb/with-library-data data)
 
         ;; Remove layout-item properties when moving a shape outside a layout
         (cond-> (not (ctl/any-layout? parent))
@@ -353,7 +370,7 @@
 
         ;; Remove the swap slots if it is moving to a different component
         (pcb/update-shapes
-         child-heads
+         child-heads-ids
          (fn [shape]
            (cond-> shape
              (not= component-main-parent (ctn/find-component-main objects shape false))
@@ -365,7 +382,45 @@
 
         ;; Add component-root property when moving a component outside a component
         (cond-> (not (ctn/get-instance-root objects parent))
-          (pcb/update-shapes child-heads #(assoc % :component-root true)))
+          (pcb/update-shapes child-heads-ids #(assoc % :component-root true)))
+
+        ;; Remove variant info when moving outside a variant-container
+        (cond-> (not (ctk/is-variant-container? parent))
+          (-> (pcb/update-shapes child-heads-ids #(dissoc % :variant-id :variant-name))
+              (pcb/update-components (map :component-id child-heads) #(dissoc % :variant-id :variant-properties))))
+
+        ;; Add variant info when moving into a variant-container
+        (cond-> (ctk/is-variant-container? parent)
+          ((fn [changes]
+             (reduce
+              (fn [changes shape]
+                (let [names     (str/split (:name shape) " / ")
+                      num-props (count variant-properties)
+                      num-new-props (if (< (count names) num-props)
+                                      0
+                                      (- (count names) num-props ))
+
+                      related-components (->> (:components data)
+                                              vals
+                                              (filter #(= (:variant-id %) (:id parent)))
+                                              reverse)
+
+                      changes (if (pos? num-new-props)
+                                (reduce (fn [changes iteration]
+                                          (clv/generate-add-new-property changes
+                                                                         related-components
+                                                                         (str "Property" (+ iteration num-props 1))))
+                                        changes
+                                        (range num-new-props))
+                                changes)
+
+                      props (assign-values variant-properties (:name shape))
+                      variant-name (str/replace (:name shape) " / " ", ")]
+                  (-> (pcb/update-component changes (:component-id shape) #(assoc % :variant-id (:id parent) :variant-properties props :name (:name parent)))
+                      (pcb/update-shapes [(:id shape)] #(assoc % :variant-id (:id parent) :variant-name variant-name :name (:name parent))))))
+              changes
+              child-heads))
+           #_(pcb/update-components (map :component-id child-heads) #(assoc % :variant-id (:id parent) :variant-properties variant-properties))))
 
         ;; Move the shapes
         (pcb/change-parent parent-id

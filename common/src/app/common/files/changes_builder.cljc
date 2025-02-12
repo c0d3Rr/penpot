@@ -1001,6 +1001,13 @@
                                        :objects (:objects prev-component)}))
        changes))))
 
+(defn update-components
+  ([changes ids update-fn]
+   (reduce
+    (fn [changes id] (update-component changes id update-fn))
+    changes
+    ids)))
+
 (defn delete-component
   [changes id page-id]
   (assert-library! changes)

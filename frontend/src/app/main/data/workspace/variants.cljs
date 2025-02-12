@@ -9,6 +9,7 @@
    [app.common.colors :as clr]
    [app.common.data.macros :as dm]
    [app.common.files.changes-builder :as pcb]
+   [app.common.logic.variants :as clv]
    [app.common.uuid :as uuid]
    [app.main.data.changes :as dch]
    [app.main.data.helpers :as dsh]
@@ -18,15 +19,10 @@
    [app.main.data.workspace.shapes :as dwsh]
    [app.main.data.workspace.undo :as dwu]
    [beicon.v2.core :as rx]
-   [cuerdas.core :as str]
    [potok.v2.core :as ptk]))
 
 
-(defn properties-to-name
-  [properties]
-  (->> properties
-       (map :value)
-       (str/join ", ")))
+
 
 (defn update-property-name
   "Update the variant property name on the position pos
@@ -83,7 +79,7 @@
                               (let [props   (:variant-properties component)
                                     props   (vec (concat (subvec props 0 pos) (subvec props (inc pos))))
                                     main-id (:main-instance-id component)
-                                    name    (properties-to-name props)]
+                                    name    (clv/properties-to-name props)]
                                 (-> changes
                                     (pcb/update-component (:id component) #(assoc % :variant-properties props))
                                     (pcb/update-shapes [main-id] #(assoc % :variant-name name)))))
@@ -110,7 +106,7 @@
             properties (-> (:variant-properties component)
                            (assoc-in [pos :value] value))
 
-            name       (properties-to-name properties)
+            name       (clv/properties-to-name properties)
 
             changes   (-> (pcb/empty-changes it page-id)
                           (pcb/with-library-data data)
@@ -123,6 +119,8 @@
          (dch/commit-changes changes)
          (dwu/commit-undo-transaction undo-id))))))
 
+
+
 (defn add-new-property
   "Add a new variant property to all the components with this variant-id"
   [variant-id]
@@ -131,36 +129,17 @@
     (watch [it state _]
       (let [page-id (:current-page-id state)
             data    (dsh/lookup-file-data state)
-            objects    (dsh/lookup-page-objects state page-id)
+            objects (dsh/lookup-page-objects state page-id)
 
             related-components (->> (:components data)
                                     vals
                                     (filter #(= (:variant-id %) variant-id))
                                     reverse)
 
-
-            property-name (str "Property" (-> related-components
-                                              first
-                                              :variant-properties
-                                              count
-                                              inc))
-
             changes (-> (pcb/empty-changes it page-id)
                         (pcb/with-library-data data)
-                        (pcb/with-objects objects))
-
-            [_ changes]
-            (reduce (fn [[num changes] component]
-                      (let [props        (-> (or (:variant-properties component) [])
-                                             (conj {:name property-name :value (str "Value" num)}))
-                            main-id      (:main-instance-id component)
-                            variant-name (properties-to-name props)]
-                        [(inc num)
-                         (-> changes
-                             (pcb/update-component (:id component) #(assoc % :variant-properties props))
-                             (pcb/update-shapes [main-id] #(assoc % :variant-name variant-name)))]))
-                    [1 changes]
-                    related-components)
+                        (pcb/with-objects objects)
+                        (clv/generate-add-new-property related-components))
             undo-id (js/Symbol)]
         (rx/of
          (dwu/start-undo-transaction undo-id)

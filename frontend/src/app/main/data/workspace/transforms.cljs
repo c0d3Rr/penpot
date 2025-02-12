@@ -871,6 +871,7 @@
     (watch [it state _]
       (let [page-id (:current-page-id state)
             objects (dsh/lookup-page-objects state page-id)
+            data    (dsh/lookup-file-data state)
             ids     (cleanup-invalid-moving-shapes ids objects frame-id)
             changes (cls/generate-relocate (pcb/empty-changes it)
                                            objects
@@ -878,6 +879,7 @@
                                            page-id
                                            drop-index
                                            ids
+                                           data
                                            :cell cell)]
 
         (when (and (some? frame-id) (d/not-empty? changes))
