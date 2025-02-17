@@ -73,6 +73,7 @@ pub(crate) struct RenderState {
     // Stack of nodes pending to be rendered.
     pub pending_nodes: Vec<NodeRenderState>,
     pub render_complete: bool,
+    pub tile_shapes: HashMap<String, Vec<Shape>>
 }
 
 impl RenderState {
@@ -489,6 +490,8 @@ impl RenderState {
         if !self.render_in_progress {
             return Ok(());
         }
+
+        // TODO: We should have a hashmap of grid elements.
 
         Ok(())
     }
