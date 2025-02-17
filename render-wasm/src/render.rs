@@ -2,7 +2,7 @@ use skia_safe as skia;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::math;
+use crate::math::{self, Rect};
 use crate::view::Viewbox;
 use skia::{Contains, Matrix};
 
@@ -477,6 +477,20 @@ impl RenderState {
 
     fn render_debug(&mut self) {
         debug::render(self);
+    }
+
+    pub fn render_shape_tree_in_area(
+        &mut self,
+        tree: &mut HashMap<Uuid, Shape>,
+        modifiers: &HashMap<Uuid, Matrix>,
+        timestamp: i32,
+        area: Rect
+    ) -> Result<(), String> {
+        if !self.render_in_progress {
+            return Ok(());
+        }
+
+        Ok(())
     }
 
     pub fn render_shape_tree(
