@@ -13,6 +13,7 @@ mod images;
 mod options;
 mod shadows;
 mod strokes;
+mod tiles;
 mod surfaces;
 
 use crate::shapes::{Corners, Kind, Shape};
@@ -57,6 +58,7 @@ pub(crate) struct RenderState {
     pub options: RenderOptions,
     pub surfaces: Surfaces,
     pub sampling_options: skia::SamplingOptions,
+    pub debug_font: skia::Font,
     pub font_provider: skia::textlayout::TypefaceFontProvider,
     pub cached_surface_image: Option<CachedSurfaceImage>,
     pub viewbox: Viewbox,
@@ -69,6 +71,7 @@ pub(crate) struct RenderState {
     // Stack of nodes pending to be rendered.
     pub pending_nodes: Vec<NodeRenderState>,
     pub render_complete: bool,
+    pub tiles: tiles::Tiles,
 }
 
 impl RenderState {
@@ -87,12 +90,22 @@ impl RenderState {
         let sampling_options =
             skia::SamplingOptions::new(skia::FilterMode::Linear, skia::MipmapMode::Nearest);
 
+        let debug_typeface = font_provider
+            .match_family_style("robotomono-regular", skia::FontStyle::default())
+            .unwrap();
+
+        let debug_font = skia::Font::new(debug_typeface, 10.0);
+
+        let surface_pool = surfaces::SurfacePool::new(&mut final_surface, tiles::get_tile_dimensions());
+        let tiles = tiles::Tiles::new(surface_pool);
+
         RenderState {
             gpu_state,
             surfaces,
             cached_surface_image: None,
             font_provider,
             sampling_options,
+            debug_font,
             options: RenderOptions::default(),
             viewbox: Viewbox::new(width as f32, height as f32),
             images: ImageStore::new(),
@@ -101,6 +114,7 @@ impl RenderState {
             render_in_progress: false,
             pending_nodes: vec![],
             render_complete: true,
+            tiles
         }
     }
 
@@ -431,7 +445,7 @@ impl RenderState {
         }
 
         if self.options.is_debug_visible() {
-            self.render_debug();
+            debug::render(self);
         }
 
         debug::render_wasm_label(self);
@@ -481,8 +495,25 @@ impl RenderState {
         Ok(())
     }
 
-    fn render_debug(&mut self) {
-        debug::render(self);
+    pub fn render_shape_tree_tile(
+        &mut self,
+        tree: &mut HashMap<Uuid, Shape>,
+        modifiers: &HashMap<Uuid, Matrix>,
+        timestamp: i32,
+        tile: (i32, i32)
+    ) -> Result<(), String> {
+        // If the tile is empty or it doesn't exists
+        if !self.tiles.has_tile_at(tile) {
+            return Ok(())
+        }
+
+        if let Some(shapes) = self.tiles.get_tile_at(tile) {
+            for shape_id in shapes.iter() {
+
+            }
+        }
+
+        Ok(())
     }
 
     pub fn render_shape_enter(&mut self, element: &mut Shape, mask: bool) {
@@ -564,6 +595,9 @@ impl RenderState {
                     .to_string(),
             )?;
 
+            // FIXME: I think this name is ambiguous because render_in_progress indicates that the
+            // render is still in progress but render_complete indicates that every element in the
+            // shape tree is rendered. Maybe could this be called render_full or is_full_render?
             let render_complete = self.viewbox.area.contains(element.selrect());
             if visited_children {
                 if !visited_mask {
@@ -666,5 +700,13 @@ impl RenderState {
         // If we finish processing every node rendering is complete
         self.render_in_progress = false;
         Ok(())
+    }
+
+    pub fn update_tile_for(&mut self, shape: &Shape) {
+        self.tiles.update_tile_for(self.viewbox, &shape);
+    }
+
+    pub fn invalidate_tiles(&mut self) {
+        self.tiles.invalidate_tiles();
     }
 }

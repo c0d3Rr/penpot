@@ -114,7 +114,9 @@ pub extern "C" fn set_view(zoom: f32, x: f32, y: f32) {
 #[no_mangle]
 pub extern "C" fn set_view_zoom(zoom: f32) {
     let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
-    state.render_state().viewbox.set_zoom(zoom);
+    let render_state = state.render_state();
+    render_state.viewbox.set_zoom(zoom);
+    render_state.invalidate_tiles();
 }
 
 #[no_mangle]
@@ -198,9 +200,7 @@ pub unsafe extern "C" fn set_shape_type(shape_type: u8) {
 #[no_mangle]
 pub extern "C" fn set_shape_selrect(left: f32, top: f32, right: f32, bottom: f32) {
     let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
-    if let Some(shape) = state.current_shape() {
-        shape.set_selrect(left, top, right, bottom);
-    }
+    state.set_selrect_for_current_shape(left, top, right, bottom);
 }
 
 #[no_mangle]
