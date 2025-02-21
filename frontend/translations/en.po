@@ -6500,7 +6500,7 @@ msgstr "Create one."
 
 #: src/app/main/ui/workspace/tokens/modals/themes.cljs:159, src/app/main/ui/workspace/tokens/modals/themes.cljs:237
 msgid "workspace.token.create-theme-title"
-msgstr "Create theme"
+msgstr "Add new theme"
 
 #: src/app/main/ui/workspace/tokens/form.cljs:431
 msgid "workspace.token.create-token"
@@ -6577,7 +6577,7 @@ msgstr "Add a theme (i.e. Light)"
 
 #: src/app/main/ui/workspace/tokens/modals/themes.cljs:56
 msgid "workspace.token.new-theme"
-msgstr "New theme"
+msgstr "Add new theme"
 
 #: src/app/main/ui/workspace/tokens/theme_select.cljs:88
 msgid "workspace.token.no-active-theme"
@@ -6652,7 +6652,15 @@ msgstr "Theme %s"
 
 #: src/app/main/ui/workspace/tokens/modals/themes.cljs:43, src/app/main/ui/workspace/tokens/modals/themes.cljs:88
 msgid "workspace.token.themes"
-msgstr "Themes"
+msgstr "Themes list"
+
+#: src/app/main/ui/workspace/tokens/modals/themes.cljs:45, src/app/main/ui/workspace/tokens/modals/themes.cljs:91
+msgid "workspace.token.themes-description"
+msgstr "Here you can manage your themes, enable / disable them and configure its active sets."
+
+#: src/app/main/ui/workspace/tokens/modals/themes.cljs:112
+msgid "workspace.token.group-name"
+msgstr "Group name"
 
 #: src/app/main/ui/workspace/tokens/form.cljs:482
 msgid "workspace.token.token-description"

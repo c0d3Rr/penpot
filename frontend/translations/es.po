@@ -6515,7 +6515,7 @@ msgstr "Crear uno."
 
 #: src/app/main/ui/workspace/tokens/modals/themes.cljs:159, src/app/main/ui/workspace/tokens/modals/themes.cljs:237
 msgid "workspace.token.create-theme-title"
-msgstr "Crear tema"
+msgstr "Añadir nuevo tema"
 
 #: src/app/main/ui/workspace/tokens/form.cljs:431
 msgid "workspace.token.create-token"
@@ -6660,7 +6660,15 @@ msgstr "Tema %s"
 
 #: src/app/main/ui/workspace/tokens/modals/themes.cljs:43, src/app/main/ui/workspace/tokens/modals/themes.cljs:88
 msgid "workspace.token.themes"
-msgstr "Temas"
+msgstr "Lista de temas"
+
+#: src/app/main/ui/workspace/tokens/modals/themes.cljs:45, src/app/main/ui/workspace/tokens/modals/themes.cljs:91
+msgid "workspace.token.themes-description"
+msgstr "Aquí puedes gestionar tus temas, activarlos / desactivarlos y configurar los sets activos en cada uno."
+
+#: src/app/main/ui/workspace/tokens/modals/themes.cljs:112
+msgid "workspace.token.group-name"
+msgstr "Nombre del grupo"
 
 #: src/app/main/ui/workspace/tokens/form.cljs:482
 msgid "workspace.token.token-description"

@@ -37,7 +37,10 @@
   (let [create-theme
         (mf/use-fn
          (mf/deps set-state)
-         #(set-state (fn [_] {:type :create-theme})))]
+         #(set-state (fn [_] {:type :create-theme})))
+        close-modal
+        (mf/use-fn (fn []
+                     (st/emit! (modal/hide))))]
     [:div {:class (stl/css :themes-modal-wrapper)}
      [:> heading* {:level 2 :typography "headline-medium" :class (stl/css :themes-modal-title)}
       (tr "workspace.token.themes")]
@@ -50,6 +53,10 @@
                   :typography "body-medium"}
         (tr "workspace.token.create-new-theme")]]
       [:div {:class (stl/css :button-footer)}
+       [:> button* {:variant "secondary"
+                    :type "button"
+                    :on-click close-modal}
+        (tr "labels.close")]
        [:> button* {:variant "primary"
                     :type "button"
                     :on-click create-theme}
@@ -81,11 +88,17 @@
          (fn [e]
            (dom/prevent-default e)
            (dom/stop-propagation e)
-           (set-state (fn [_] {:type :create-theme}))))]
+           (set-state (fn [_] {:type :create-theme}))))
+
+        close-modal
+        (mf/use-fn (fn []
+                     (st/emit! (modal/hide))))]
 
     [:div {:class (stl/css :themes-modal-wrapper)}
      [:> heading* {:level 2 :typography "headline-medium" :class (stl/css :themes-modal-title)}
       (tr "workspace.token.themes")]
+     [:> text* {:as "div" :typography "body-medium" :class (stl/css :themes-modal-description)}
+      (tr "workspace.token.themes-description")]
      [:ul {:class (stl/css :theme-group-wrapper)}
       (for [[group themes] themes-groups]
         [:li {:key (dm/str "token-theme-group" group)}
@@ -93,7 +106,7 @@
            [:> heading* {:level 3
                          :class (stl/css :theme-group-label)
                          :typography "body-large"}
-            [:span {:class (stl/css :group-title)}
+            [:span {:class (stl/css :group-title) :title (tr "workspace.token.group-name")}
              [:> icon* {:icon-id "group"}]
              group]])
          [:ul {:class (stl/css :theme-group-rows-wrapper)}
@@ -152,9 +165,12 @@
                                 :icon "delete"}]]])]])]
 
      [:div {:class (stl/css :button-footer)}
+      [:> button* {:variant "secondary"
+                   :type "button"
+                   :on-click close-modal}
+       (tr "labels.close")]
       [:> button* {:variant "primary"
                    :type "button"
-                   :icon "add"
                    :on-click create-theme}
        (tr "workspace.token.create-theme-title")]]]))
 
