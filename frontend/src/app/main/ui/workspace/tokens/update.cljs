@@ -18,7 +18,7 @@
 
 (def filter-existing-values? false)
 
-(def attributes->shape-update
+(def ^:private attributes->shape-update
   {ctt/border-radius-keys wtch/update-shape-radius-for-corners
    ctt/color-keys wtch/update-fill-stroke
    ctt/stroke-width-keys wtch/update-stroke-width
@@ -33,10 +33,17 @@
    ctt/rotation-keys wtch/update-rotation})
 
 (def attribute-actions-map
-  (reduce
-   (fn [acc [ks action]]
-     (into acc (map (fn [k] [k action]) ks)))
-   {} attributes->shape-update))
+  (reduce-kv (fn [acc ks action]
+               (into acc (map (fn [k] [k action]) ks)))
+             {}
+             attributes->shape-update))
+
+  ;; (reduce
+  ;;  (fn [acc [ks action]]
+  ;;    (into acc (map (fn [k] [k action]) ks)))
+  ;;  {} attributes->shape-update))
+
+;; (app.common.pprint/pprint attribute-actions-map)
 
 ;; Helpers ---------------------------------------------------------------------
 
@@ -113,14 +120,13 @@
 
       [tokens frame-ids text-ids])))
 
-;; FIXME: revisit this
-(defn- actionize-shapes-update-info [page-id shapes-update-info]
+(defn- actionize-shapes-update-info
+  [page-id shapes-update-info]
   (mapcat (fn [[attrs update-infos]]
             (let [action (some attribute-actions-map attrs)]
-              (map
-               (fn [[v shape-ids]]
-                 (action v shape-ids attrs page-id))
-               update-infos)))
+              (map (fn [[v shape-ids]]
+                     (action v shape-ids attrs page-id))
+                   update-infos)))
           shapes-update-info))
 
 (defn update-tokens
@@ -128,7 +134,13 @@
   (let [file-id         (get state :current-file-id)
         current-page-id (get state :current-page-id)
         fdata           (dsh/lookup-file-data state file-id)]
-    (->> (rx/from (:pages fdata))
+    (->> (rx/concat
+          (rx/of current-page-id)
+          (->> (rx/from (:pages fdata))
+               (rx/filter (fn [id] (not= id current-page-id)))
+               (rx/mapcat (fn [page-id]
+                            (->> (rx/of page-id)
+                                 (rx/delay 0))))))
          (rx/mapcat
           (fn [page-id]
             (let [page
@@ -137,21 +149,32 @@
                   [attrs frame-ids text-ids]
                   (collect-shapes-update-info resolved-tokens (:objects page))
 
+                  ;; _ (app.common.pprint/pprint (keys attrs))
+                  ;; _ (app.common.pprint/pprint attrs)
+
                   actions
-                  (actionize-shapes-update-info page-id attrs)]
+                  (do (actionize-shapes-update-info page-id attrs))]
+
+              (prn "processing page" page-id (count actions) (count frame-ids))
+
 
               (rx/merge
-               (rx/from actions)
+               (->> (rx/from (partition-all 10 actions))
+                    (rx/mapcat (fn [actions]
+                                 (->> (rx/from actions)
+                                      (rx/delay 1)))))
                (->> (rx/from frame-ids)
                     (rx/mapcat (fn [frame-id]
-                                 (rx/of (dwt/clear-thumbnail file-id page-id frame-id "frame")
-                                        (dwt/clear-thumbnail file-id page-id frame-id "component")))))
+                                 (->> (rx/of (dwt/clear-thumbnail file-id page-id frame-id "frame")
+                                             (dwt/clear-thumbnail file-id page-id frame-id "component"))))))
                (when (not= page-id current-page-id)   ;; Texts in the current page have already their position-data regenerated
                  (rx/of (dwsh/update-shapes text-ids  ;; after change. But those on other pages need to be specifically reset.
                                             (fn [shape]
                                               (dissoc shape :position-data))
                                             {:page-id page-id
-                                             :ignore-touched true}))))))))))
+                                             :ignore-touched true})))))))
+         (rx/finalize (fn [_]
+                        (prn "END"))))))
 
 (defn update-workspace-tokens
   []

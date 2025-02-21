@@ -87,11 +87,22 @@
    (let [page-id   (or (get options :page-id)
                        (get state :current-page-id))
          objects   (dsh/lookup-page-objects state page-id)
-         is-text?  #(= :text (:type (get objects %)))
-         text-ids  (filter is-text? ids)
-         shape-ids (remove is-text? ids)
 
-         undo-id   (js/Symbol)
+         ;; FIXME: move to a helper in common
+         [text-ids shape-ids]
+         (loop [ids (seq ids)
+                text-ids []
+                shape-ids []]
+           (if-let [id (first ids)]
+             (let [shape (get objects id)]
+               (if (cfh/text-shape? shape)
+                 (recur (rest ids)
+                        (conj text-ids id)
+                        shape-ids)
+                 (recur (rest ids)
+                        text-ids
+                        (conj shape-ids id))))
+             [text-ids shape-ids]))
 
          attrs
          (cond-> {}
@@ -116,7 +127,10 @@
            :always
            (d/without-nils))
 
-         transform-attrs #(transform % attrs)]
+         transform-attrs #(do (transform % attrs))
+         undo-id         (js/Symbol)]
+
+     (prn "AAAA" (count text-ids) (count shape-ids))
 
      (rx/concat
       (rx/of (dwu/start-undo-transaction undo-id))
@@ -147,6 +161,15 @@
          (rx/from (map #(dwt/update-text-with-function % transform-attrs) text-ids))
          (rx/of (dwsh/update-shapes shape-ids transform-attrs)))))))
 
+
+(defn update-shape-fill
+  [position shape attrs]
+  (update shape :fills
+          (fn [fills]
+            (if (nil? fills)
+              [attrs]
+              (assoc fills position attrs)))))
+
 (defn change-fill
   ([ids color position]
    (change-fill ids color position nil))
@@ -154,12 +177,14 @@
    (ptk/reify ::change-fill
      ptk/WatchEvent
      (watch [_ state _]
-       (let [change-fn (fn [shape attrs]
-                         (-> shape
-                             (cond-> (not (contains? shape :fills))
-                               (assoc :fills []))
-                             (assoc-in [:fills position] (into {} attrs))))]
-         (transform-fill state ids color change-fn options))))))
+       (prn "change-fill" ids color)
+       (let [change-fn (partial update-shape-fill position)
+             undo-id   (js/Symbol)]
+
+         (rx/concat
+          (rx/of (dwu/start-undo-transaction undo-id))
+          (transform-fill state ids color change-fn options)
+          (rx/of (dwu/commit-undo-transaction undo-id))))))))
 
 (defn change-fill-and-clear
   ([ids color] (change-fill-and-clear ids color nil))

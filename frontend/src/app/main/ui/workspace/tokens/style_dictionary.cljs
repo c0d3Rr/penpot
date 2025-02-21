@@ -10,6 +10,7 @@
    [app.main.ui.workspace.tokens.token :as wtt]
    [app.main.ui.workspace.tokens.warnings :as wtw]
    [beicon.v2.core :as rx]
+   [app.util.time :as dt]
    [cuerdas.core :as str]
    [promesa.core :as p]
    [rumext.v2 :as mf]))
@@ -157,9 +158,14 @@
     config)
 
   (build-dictionary [_]
-    (-> (sd. (clj->js config))
-        (.buildAllPlatforms "json")
-        (p/then #(.-allTokens ^js %)))))
+    (let [config' (clj->js config)
+          tpoint  (dt/tpoint-ms)]
+      (-> (sd. config')
+          (.buildAllPlatforms "json")
+          (p/then #(.-allTokens ^js %))
+          (p/then (fn [o]
+                    ;; (js/console.log "resolved" (tpoint) (count (:tokens config)))
+                    o))))))
 
 (defn resolve-tokens-tree+
   ([tokens-tree get-token]
@@ -299,14 +305,22 @@
   This is a cache-less, simplified version of use-resolved-tokens
   hook."
   [tokens & {:keys [interactive?]}]
-  (let [state* (mf/use-state tokens)]
+  (let [state* (mf/use-state tokens)
+        ;; tokens  (app.main.ui.hooks/use-equal-memo tokens)
+        ;; tokens' (app.main.ui.hooks/use-previous tokens)
+        ]
+    ;; (prn "use-resolved-tokens" (count tokens))
     (mf/with-effect [tokens interactive?]
       (when (seq tokens)
-        (let [promise (if interactive?
+        (let [tpoint  (dt/tpoint-ms)
+              promise (if interactive?
                         (resolve-tokens-interactive+ tokens)
                         (resolve-tokens+ tokens))]
 
+          (js/console.log "pre-resolved" (tpoint) (count tokens))
+
           (->> promise
                (p/fmap (fn [resolved-tokens]
+                         (js/console.log "post-resolved" (tpoint) (count tokens))
                          (reset! state* resolved-tokens)))))))
     @state*))
