@@ -44,6 +44,11 @@ impl<'a> State<'a> {
         Ok(())
     }
 
+    pub fn start_render_loop_tiles(&mut self, timestamp: i32) -> Result<(), String> {
+        self.render_state.start_render_loop_tiles(&mut self.shapes, &self.modifiers, timestamp)?;
+        Ok(())
+    }
+
     pub fn process_animation_frame(&mut self, timestamp: i32) -> Result<(), String> {
         self.render_state
             .process_animation_frame(&mut self.shapes, &self.modifiers, timestamp)?;

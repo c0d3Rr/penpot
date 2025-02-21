@@ -57,7 +57,7 @@ pub fn render_debug_shape(render_state: &mut RenderState, element: &Shape, inter
 
 // Renders the tiles in the viewbox
 pub fn render_debug_viewbox_tiles(render_state: &mut RenderState) {
-    let canvas = render_state.debug_surface.canvas();
+    let canvas = render_state.surfaces.debug.canvas();
     let mut paint = skia::Paint::default();
     paint.set_style(skia::PaintStyle::Stroke);
     paint.set_color(skia::Color::from_rgb(255, 0, 127));
@@ -78,7 +78,7 @@ pub fn render_debug_viewbox_tiles(render_state: &mut RenderState) {
 }
 
 pub fn render_debug_tiles(render_state: &mut RenderState) {
-    let canvas = render_state.debug_surface.canvas();
+    let canvas = render_state.surfaces.debug.canvas();
     let mut paint = skia::Paint::default();
     paint.set_style(skia::PaintStyle::Stroke);
     paint.set_color(skia::Color::from_rgb(127, 0, 255));

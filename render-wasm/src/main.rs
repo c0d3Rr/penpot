@@ -74,7 +74,8 @@ pub extern "C" fn set_canvas_background(raw_color: u32) {
 #[no_mangle]
 pub extern "C" fn render(timestamp: i32) {
     let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
-    state.start_render_loop(timestamp).expect("Error rendering");
+    // state.start_render_loop(timestamp).expect("Error rendering");
+    state.start_render_loop_tiles(timestamp).expect("Error rendering tiles");
 }
 
 #[no_mangle]
@@ -108,9 +109,13 @@ pub extern "C" fn set_view(zoom: f32, x: f32, y: f32) {
     let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
     let render_state = state.render_state();
     render_state.invalidate_cache_if_needed();
+    if zoom != render_state.viewbox.zoom {
+        render_state.invalidate_tiles();
+    }
     render_state.viewbox.set_all(zoom, x, y);
 }
 
+/*
 #[no_mangle]
 pub extern "C" fn set_view_zoom(zoom: f32) {
     let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
@@ -124,6 +129,7 @@ pub extern "C" fn set_view_xy(x: f32, y: f32) {
     let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
     state.render_state().viewbox.set_pan_xy(x, y);
 }
+*/
 
 #[no_mangle]
 pub extern "C" fn use_shape(a: u32, b: u32, c: u32, d: u32) {

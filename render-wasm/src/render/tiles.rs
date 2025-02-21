@@ -24,8 +24,25 @@ pub fn get_tiles_for_rect(rect: skia::Rect, tile_size: f32) -> (i32, i32, i32, i
   (sx, sy, ex, ey)
 }
 
+pub fn get_tiles_for_viewbox(viewbox: Viewbox) -> (i32, i32, i32, i32) {
+  let tile_size = get_tile_size(viewbox);
+  get_tiles_for_rect(viewbox.area, tile_size)
+}
+
+pub fn get_tile_pos(viewbox: Viewbox, (x, y): Tile) -> (f32, f32) {
+  (x as f32 * get_tile_size(viewbox), y as f32 * get_tile_size(viewbox))
+}
+
 pub fn get_tile_size(viewbox: Viewbox) -> f32 {
   1. / viewbox.zoom * TILE_SIZE
+}
+
+pub fn get_tile_rect(viewbox: Viewbox, tile: Tile) -> skia::Rect {
+    let (tx, ty) = get_tile_pos(viewbox, tile);
+    let ts = get_tile_size(viewbox);
+    skia::Rect::from_xywh(
+        tx, ty, ts, ts
+    )
 }
 
 pub struct TileSurfaceCache {
@@ -49,7 +66,7 @@ impl TileSurfaceCache {
       let surface = self.pool.allocate()?;
       self.grid.insert(tile, surface.clone());
       Ok(surface)
-  }  
+  }
 
   pub fn set(&mut self, tile: Tile, surface: skia::Surface) {
     self.grid.insert(tile, surface);
