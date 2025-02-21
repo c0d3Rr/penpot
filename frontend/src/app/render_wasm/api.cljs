@@ -122,21 +122,10 @@
 (defn set-shape-type
   [type {:keys [masked]}]
   (h/call internal-module "_set_shape_type" (translate-shape-type type))
-  (cond
-    (= type :circle)
-    (h/call internal-module "_set_shape_kind_circle")
 
-    (= type :path)
-    (h/call internal-module "_set_shape_kind_path")
-
-    (= type :bool)
-    (h/call internal-module "_set_shape_kind_bool")
-
-    (= type :group)
-    (h/call internal-module "_set_shape_kind_group" masked)
-
-    :else
-    (h/call internal-module "_set_shape_kind_rect")))
+  ;; TODO move this outside the type
+  (if masked
+    (h/call internal-module "_set_shape_masked_group" masked)))
 
 (defn set-shape-selrect
   [selrect]

@@ -1,4 +1,3 @@
-use skia::Rect;
 use skia_safe as skia;
 
 mod debug;
@@ -11,7 +10,7 @@ mod utils;
 mod view;
 
 use crate::mem::SerializableResult;
-use crate::shapes::{BoolType, ConstraintH, ConstraintV, Group, Kind, Path, TransformEntry, Type};
+use crate::shapes::{BoolType, ConstraintH, ConstraintV, TransformEntry, Type};
 
 use crate::state::State;
 use crate::utils::uuid_from_u32_quartet;
@@ -131,50 +130,10 @@ pub extern "C" fn use_shape(a: u32, b: u32, c: u32, d: u32) {
 }
 
 #[no_mangle]
-pub extern "C" fn set_shape_kind_group(masked: bool) {
+pub extern "C" fn set_shape_masked_group(masked: bool) {
     let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
     if let Some(shape) = state.current_shape() {
-        shape.set_kind(Kind::Group(Group::new(masked)));
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn set_shape_kind_circle() {
-    let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
-
-    if let Some(shape) = state.current_shape() {
-        shape.set_kind(Kind::Circle(Rect::new_empty()));
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn set_shape_kind_rect() {
-    let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
-
-    if let Some(shape) = state.current_shape() {
-        match shape.kind() {
-            Kind::Rect(_, _) => {}
-            _ => shape.set_kind(Kind::Rect(Rect::new_empty(), None)),
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn set_shape_kind_path() {
-    let state = unsafe { STATE.as_mut() }.expect("Got an invalid state pointer");
-    if let Some(shape) = state.current_shape() {
-        shape.set_kind(Kind::Path(Path::default()));
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn set_shape_kind_bool() {
-    let state = unsafe { STATE.as_mut() }.expect("got an invalid state pointer");
-    if let Some(shape) = state.current_shape() {
-        match shape.kind() {
-            Kind::Bool(_, _) => {}
-            _ => shape.set_kind(Kind::Bool(BoolType::default(), Path::default())),
-        }
+        shape.set_masked(masked);
     }
 }
 

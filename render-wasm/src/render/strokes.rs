@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use crate::shapes::{Corners, Fill, ImageFill, Kind, Path, Shape, Stroke, StrokeCap, StrokeKind};
-use skia::Rect;
+use crate::shapes::{Corners, Fill, ImageFill, Type, Path, Shape, Stroke, StrokeCap, StrokeKind, Bool, Rect, Frame};
 use skia_safe::{self as skia, RRect};
 
 use super::RenderState;
@@ -9,8 +8,8 @@ use super::RenderState;
 fn draw_stroke_on_rect(
     canvas: &skia::Canvas,
     stroke: &Stroke,
-    rect: &Rect,
-    selrect: &Rect,
+    rect: &skia::Rect,
+    selrect: &skia::Rect,
     corners: &Option<Corners>,
     svg_attrs: &HashMap<String, String>,
     scale: f32,
@@ -37,8 +36,8 @@ fn draw_stroke_on_rect(
 fn draw_stroke_on_circle(
     canvas: &skia::Canvas,
     stroke: &Stroke,
-    rect: &Rect,
-    selrect: &Rect,
+    rect: &skia::Rect,
+    selrect: &skia::Rect,
     svg_attrs: &HashMap<String, String>,
     scale: f32,
 ) {
@@ -54,7 +53,7 @@ fn draw_stroke_on_path(
     canvas: &skia::Canvas,
     stroke: &Stroke,
     path: &Path,
-    selrect: &Rect,
+    selrect: &skia::Rect,
     path_transform: Option<&skia::Matrix>,
     svg_attrs: &HashMap<String, String>,
     scale: f32,
@@ -147,7 +146,7 @@ fn handle_stroke_cap(
 fn handle_stroke_caps(
     path: &mut skia::Path,
     stroke: &Stroke,
-    selrect: &Rect,
+    selrect: &skia::Rect,
     canvas: &skia::Canvas,
     is_open: bool,
     svg_attrs: &HashMap<String, String>,
@@ -297,7 +296,7 @@ fn draw_triangle_cap(
     canvas.draw_path(&path, paint);
 }
 
-fn calculate_scaled_rect(size: (i32, i32), container: &Rect, delta: f32) -> Rect {
+fn calculate_scaled_rect(size: (i32, i32), container: &skia::Rect, delta: f32) -> skia::Rect {
     let (width, height) = (size.0 as f32, size.1 as f32);
     let image_aspect_ratio = width / height;
 
@@ -315,7 +314,7 @@ fn calculate_scaled_rect(size: (i32, i32), container: &Rect, delta: f32) -> Rect
     let scaled_width = width * scale;
     let scaled_height = height * scale;
 
-    Rect::from_xywh(
+    skia::Rect::from_xywh(
         container.left - delta - (scaled_width - container_width) / 2.0,
         container.top - delta - (scaled_height - container_height) / 2.0,
         scaled_width + (2. * delta) + (scaled_width - container_width),
@@ -336,7 +335,6 @@ fn draw_image_stroke_in_container(
 
     let size = image_fill.size();
     let canvas = render_state.drawing_surface.canvas();
-    let kind = &shape.kind;
     let container = &shape.selrect;
     let path_transform = shape.to_path_transform();
     let svg_attrs = &shape.svg_attrs;
@@ -349,23 +347,24 @@ fn draw_image_stroke_in_container(
     let layer_rec = skia::canvas::SaveLayerRec::default().paint(&pb);
     canvas.save_layer(&layer_rec);
 
-    // Draw the stroke based on the kind, we are using this stroke as a "selector" of the area of the image we want to show.
+    // Draw the stroke based on the shape type, we are using this stroke as
+    // a "selector" of the area of the image we want to show.
     let outer_rect = stroke.outer_rect(container);
-    match kind {
-        Kind::Rect(rect, corners) => draw_stroke_on_rect(
+
+    match &shape.shape_type {
+        Type::Rect(Rect { corners, .. }) | Type::Frame(Frame { corners, .. }) => draw_stroke_on_rect(
             canvas,
             stroke,
-            rect,
+            container,
             &outer_rect,
             corners,
             svg_attrs,
             dpr_scale,
         ),
-        Kind::Circle(rect) => {
-            draw_stroke_on_circle(canvas, stroke, rect, &outer_rect, svg_attrs, dpr_scale)
+        Type::Circle => {
+            draw_stroke_on_circle(canvas, stroke, container, &outer_rect, svg_attrs, dpr_scale)
         }
-        Kind::SVGRaw(_) | Kind::Group(_) => unreachable!("This shape should not have strokes"),
-        Kind::Path(p) | Kind::Bool(_, p) => {
+        Type::Path(p) | Type::Bool(Bool { path: p, .. }) => {
             canvas.save();
             let mut path = p.to_skia_path();
             path.transform(&path_transform.unwrap());
@@ -397,8 +396,11 @@ fn draw_image_stroke_in_container(
                 svg_attrs,
                 dpr_scale,
             );
-        }
+        },
+
+        _ => unreachable!("This shape should not have strokes"),
     }
+ 
     // Draw the image. We are using now the SrcIn blend mode, so the rendered piece of image will the area of the stroke over the image.
     let mut image_paint = skia::Paint::default();
     image_paint.set_blend_mode(skia::BlendMode::SrcIn);
@@ -410,7 +412,7 @@ fn draw_image_stroke_in_container(
     canvas.draw_image_rect(image.unwrap(), None, dest_rect, &image_paint);
 
     // Clear outer stroke for paths if necessary. When adding an outer stroke we need to empty the stroke added too in the inner area.
-    if let Kind::Path(p) = kind {
+    if let Type::Path(p) = &shape.shape_type {
         if stroke.render_kind(p.is_open()) == StrokeKind::OuterStroke {
             let mut path = p.to_skia_path();
             path.transform(&path_transform.unwrap());
@@ -433,19 +435,19 @@ pub fn render(render_state: &mut RenderState, shape: &Shape, stroke: &Stroke) {
     let dpr_scale = render_state.viewbox.zoom * render_state.options.dpr();
     let selrect = shape.selrect;
     let path_transform = shape.to_path_transform();
-    let kind = &shape.kind;
     let svg_attrs = &shape.svg_attrs;
+
     if let Fill::Image(image_fill) = &stroke.fill {
         draw_image_stroke_in_container(render_state, shape, stroke, image_fill);
     } else {
-        match kind {
-            Kind::Rect(rect, corners) => draw_stroke_on_rect(
-                canvas, stroke, rect, &selrect, corners, svg_attrs, dpr_scale,
+        match &shape.shape_type {
+            Type::Rect(Rect { corners, .. }) => draw_stroke_on_rect(
+                canvas, stroke, &selrect, &selrect, corners, svg_attrs, dpr_scale,
             ),
-            Kind::Circle(rect) => {
-                draw_stroke_on_circle(canvas, stroke, rect, &selrect, &svg_attrs, dpr_scale)
+            Type::Circle => {
+                draw_stroke_on_circle(canvas, stroke, &selrect, &selrect, &svg_attrs, dpr_scale)
             }
-            Kind::Path(path) | Kind::Bool(_, path) => {
+            Type::Path(path) | Type::Bool(Bool { path, .. }) => {
                 let svg_attrs = &shape.svg_attrs;
                 draw_stroke_on_path(
                     canvas,
@@ -457,7 +459,7 @@ pub fn render(render_state: &mut RenderState, shape: &Shape, stroke: &Stroke) {
                     dpr_scale,
                 );
             }
-            Kind::SVGRaw(_) | Kind::Group(_) => unreachable!("This shape should not have strokes"),
+            _ => unreachable!("This shape should not have strokes"),
         }
     }
 }
