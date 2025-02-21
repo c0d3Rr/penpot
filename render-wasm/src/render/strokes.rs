@@ -4,7 +4,7 @@ use crate::shapes::{Corners, Fill, ImageFill, Kind, Path, Shape, Stroke, StrokeC
 use skia::Rect;
 use skia_safe::{self as skia, RRect};
 
-use super::RenderState;
+use super::{RenderState, SurfaceId};
 
 fn draw_stroke_on_rect(
     canvas: &skia::Canvas,
@@ -335,7 +335,7 @@ fn draw_image_stroke_in_container(
     }
 
     let size = image_fill.size();
-    let canvas = render_state.surfaces.shape.canvas();
+    let canvas = render_state.surfaces.canvas(SurfaceId::Shape);
     let kind = &shape.kind;
     let container = &shape.selrect;
     let path_transform = shape.to_path_transform();
@@ -429,7 +429,7 @@ fn draw_image_stroke_in_container(
  * This SHOULD be the only public function in this module.
  */
 pub fn render(render_state: &mut RenderState, shape: &Shape, stroke: &Stroke) {
-    let canvas = render_state.surfaces.shape.canvas();
+    let canvas = render_state.surfaces.canvas(SurfaceId::Shape);
     let dpr_scale = render_state.viewbox.zoom * render_state.options.dpr();
     let selrect = shape.selrect;
     let path_transform = shape.to_path_transform();

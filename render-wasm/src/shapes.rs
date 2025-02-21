@@ -569,7 +569,7 @@ mod tests {
         let mut shape = Shape::new(Uuid::new_v4());
         shape.set_shape_type(Type::Rect);
         shape.set_selrect(0.0, 10.0, 10.0, 0.0);
-        shape.apply_transform(Matrix::scale((2.0, 2.0)));
+        shape.apply_transform(&Matrix::scale((2.0, 2.0)));
 
         match shape.kind {
             Kind::Rect(r, _) => {
