@@ -70,6 +70,7 @@ pub(crate) struct RenderState {
     pub render_in_progress: bool,
     // Stack of nodes pending to be rendered.
     pub pending_nodes: Vec<NodeRenderState>,
+    pub current_tile: tiles::Tile,
     pub render_complete: bool,
     pub tiles: tiles::Tiles,
 }
@@ -114,6 +115,7 @@ impl RenderState {
             render_in_progress: false,
             pending_nodes: vec![],
             render_complete: true,
+            current_tile: (0, 0),
             tiles
         }
     }
@@ -378,7 +380,9 @@ impl RenderState {
             .shape
             .canvas()
             .translate((self.viewbox.pan_x, self.viewbox.pan_y));
-        //
+
+        // TODO: Check if this should use `self.pending_nodes.push` or the
+        // assignment.
         self.pending_nodes = vec![NodeRenderState {
             id: Uuid::nil(),
             visited_children: false,
@@ -386,6 +390,7 @@ impl RenderState {
             visited_mask: false,
             mask: false,
         }];
+
         self.render_in_progress = true;
         self.process_animation_frame(tree, modifiers, timestamp)?;
         self.render_complete = true;
@@ -495,13 +500,44 @@ impl RenderState {
         Ok(())
     }
 
-    pub fn render_shape_tree_tile(
+    pub fn start_render_loop_tile(
         &mut self,
         tree: &mut HashMap<Uuid, Shape>,
         modifiers: &HashMap<Uuid, Matrix>,
         timestamp: i32,
         tile: (i32, i32)
     ) -> Result<(), String> {
+        self.current_tile = tile;
+
+        if self.render_in_progress {
+            if let Some(frame_id) = self.render_request_id {
+                self.cancel_animation_frame(frame_id);
+            }
+        }
+
+        self.reset_canvas();
+        self.drawing_surface.canvas().scale((
+            self.viewbox.zoom * self.options.dpr(),
+            self.viewbox.zoom * self.options.dpr(),
+        ));
+        self.drawing_surface
+            .canvas()
+            .translate((self.viewbox.pan_x, self.viewbox.pan_y));
+
+        // TODO: Check if this should use `self.pending_nodes.push` or the
+        // assignment.
+        self.pending_nodes = vec![NodeRenderState {
+            id: Uuid::nil(),
+            visited_children: false,
+            clip_bounds: None,
+            visited_mask: false,
+            mask: false,
+        }];
+
+        self.render_in_progress = true;
+        self.process_animation_frame(tree, modifiers, timestamp)?;
+        self.render_complete = true;
+
         // If the tile is empty or it doesn't exists
         if !self.tiles.has_tile_at(tile) {
             return Ok(())
@@ -509,7 +545,13 @@ impl RenderState {
 
         if let Some(shapes) = self.tiles.get_tile_at(tile) {
             for shape_id in shapes.iter() {
-
+                self.pending_nodes.push(NodeRenderState {
+                    id: *shape_id,
+                    visited_children: false,
+                    clip_bounds: None,
+                    visited_mask: false,
+                    mask: false,
+                })
             }
         }
 
