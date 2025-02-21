@@ -1210,6 +1210,23 @@
          (t/testing "invalid tokens got discarded"
            (t/is (nil? (get-set-token "typography" "H1.Bold"))))))
 
+     (t/testing "decode-dtcg-json-default-team"
+       (let [json (-> (slurp "test/common_tests/types/data/tokens-default-team-only.json")
+                      (tr/decode-str))
+             lib (ctob/decode-dtcg-json (ctob/ensure-tokens-lib nil) json)
+             get-set-token (fn [set-name token-name]
+                             (some-> (ctob/get-set lib set-name)
+                                     (ctob/get-token token-name)))
+             themes (ctob/get-themes lib)]
+         (t/is (= '("dark") (ctob/get-ordered-set-names lib)))
+         (t/testing "token exist in dark set"
+           (t/is (tht/token-data-eq? (get-set-token "dark" "small")
+                                     {:value "8"
+                                      :type "borderRadius"
+                                      :description ""})))
+         (t/testing "There is any theme"
+           (t/is (= themes [])))))
+
      (t/testing "encode-dtcg-json"
        (let [now (dt/now)
              tokens-lib (-> (ctob/make-tokens-lib)
@@ -1366,7 +1383,7 @@
                                                   "$description" ""}}}}}]
 
          (t/is (= expected result))))
-     
+
      (t/testing "encode-dtcg-json-with-active-theme-and-set"
        (let [now (dt/now)
              tokens-lib (-> (ctob/make-tokens-lib)
