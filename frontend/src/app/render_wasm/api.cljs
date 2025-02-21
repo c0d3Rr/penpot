@@ -121,7 +121,7 @@
 
 (defn set-shape-type
   [type {:keys [masked]}]
-  (h/call internal-module "_set_shape_type" (translate-shape-type type))
+  (dm/run-render "set_shape_type" (translate-shape-type type))
   (cond
     (= type :circle)
     (h/call internal-module "_set_shape_kind_circle")
