@@ -6,6 +6,7 @@
 
 (ns app.rpc.commands.files-snapshot
   (:require
+   [app.binfile.common :as bfc]
    [app.common.exceptions :as ex]
    [app.common.logging :as l]
    [app.common.schema :as sm]
@@ -21,8 +22,6 @@
    [app.rpc.doc :as-alias doc]
    [app.rpc.quotes :as quotes]
    [app.storage :as sto]
-   [app.util.blob :as blob]
-   [app.util.pointer-map :as pmap]
    [app.util.services :as sv]
    [app.util.time :as dt]
    [cuerdas.core :as str]))
@@ -58,26 +57,6 @@
                  (files/check-read-permissions! conn profile-id file-id)
                  (get-file-snapshots conn file-id))))
 
-(def ^:private sql:get-file
-  "SELECT f.*,
-          p.id AS project_id,
-          p.team_id AS team_id
-     FROM file AS f
-    INNER JOIN project AS p ON (p.id = f.project_id)
-    WHERE f.id = ?")
-
-(defn- get-file
-  [cfg file-id]
-  (let [file (->> (db/exec-one! cfg [sql:get-file file-id])
-                  (feat.fdata/resolve-file-data cfg))]
-    (binding [pmap/*load-fn* (partial feat.fdata/load-pointer cfg file-id)]
-      (-> file
-          (update :data blob/decode)
-          (update :data feat.fdata/process-pointers deref)
-          (update :data feat.fdata/process-objects (partial into {}))
-          (update :data assoc :id file-id)
-          (update :data blob/encode)))))
-
 (defn- generate-snapshot-label
   []
   (let [ts (-> (dt/now)
@@ -87,40 +66,35 @@
     (str "snapshot-" ts)))
 
 (defn create-file-snapshot!
-  [cfg profile-id file-id label]
-  (let [file (get-file cfg file-id)
+  [cfg file & {:keys [label created-by deleted-at profile-id]
+               :or {deleted-at :default
+                    created-by :system}}]
 
-        ;; NOTE: final user never can provide label as `:system`
-        ;; keyword because the validator implies label always as
-        ;; string; keyword is used for signal a special case
-        created-by
-        (if (= label :system)
-          "system"
-          "user")
+  (assert (#{:system :user :admin} created-by)
+          "expected valid keyword for created-by")
+
+  (let [created-by
+        (name created-by)
 
         deleted-at
-        (if (= label :system)
+        (cond
+          (= deleted-at :default)
           (dt/plus (dt/now) (cf/get-deletion-delay))
+
+          (dt/instant? deleted-at)
+          deleted-at
+
+          :else
           nil)
 
         label
-        (if (= label :system)
-          (str "internal/snapshot/" (:revn file))
-          (or label (generate-snapshot-label)))
+        (or label (generate-snapshot-label))
 
         snapshot-id
         (uuid/next)]
 
-    (-> cfg
-        (assoc ::quotes/profile-id profile-id)
-        (assoc ::quotes/project-id (:project-id file))
-        (assoc ::quotes/team-id (:team-id file))
-        (assoc ::quotes/file-id (:id file))
-        (quotes/check! {::quotes/id ::quotes/snapshots-per-file}
-                       {::quotes/id ::quotes/snapshots-per-team}))
-
     (l/debug :hint "creating file snapshot"
-             :file-id (str file-id)
+             :file-id (str (:id file))
              :id (str snapshot-id)
              :label label)
 
@@ -146,12 +120,25 @@
 
 (sv/defmethod ::create-file-snapshot
   {::doc/added "1.20"
-   ::sm/params schema:create-file-snapshot}
-  [cfg {:keys [::rpc/profile-id file-id label]}]
-  (db/tx-run! cfg
-              (fn [{:keys [::db/conn] :as cfg}]
-                (files/check-edition-permissions! conn profile-id file-id)
-                (create-file-snapshot! cfg profile-id file-id label))))
+   ::sm/params schema:create-file-snapshot
+   ::db/transaction true}
+  [{:keys [::db/conn] :as cfg} {:keys [::rpc/profile-id file-id label]}]
+  (files/check-edition-permissions! conn profile-id file-id)
+  (let [file    (bfc/get-file cfg file-id)
+        project (db/get-by-id cfg :project (:project-id file))]
+
+    (-> cfg
+        (assoc ::quotes/profile-id profile-id)
+        (assoc ::quotes/project-id (:project-id file))
+        (assoc ::quotes/team-id (:team-id project))
+        (assoc ::quotes/file-id (:id file))
+        (quotes/check! {::quotes/id ::quotes/snapshots-per-file}
+                       {::quotes/id ::quotes/snapshots-per-team}))
+
+    (create-file-snapshot! cfg file
+                           {:label label
+                            :profile-id profile-id
+                            :created-by :user})))
 
 (defn restore-file-snapshot!
   [{:keys [::db/conn ::mbus/msgbus] :as cfg} file-id snapshot-id]
@@ -237,8 +224,11 @@
   (db/tx-run! cfg
               (fn [{:keys [::db/conn] :as cfg}]
                 (files/check-edition-permissions! conn profile-id file-id)
-                (create-file-snapshot! cfg profile-id file-id :system)
-                (restore-file-snapshot! cfg file-id id))))
+                (let [file (bfc/get-file cfg file-id)]
+                  (create-file-snapshot! cfg file
+                                         {:profile-id profile-id
+                                          :created-by :system})
+                  (restore-file-snapshot! cfg file-id id)))))
 
 (def ^:private schema:update-file-snapshot
   [:map {:title "update-file-snapshot"}
